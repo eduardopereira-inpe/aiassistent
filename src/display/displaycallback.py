@@ -4,6 +4,8 @@
 
 class DisplayCallback:
 
+    MAX_BUFFER_CHARS = 96
+
     def __init__(self, display):
 
         self.display = display
@@ -50,6 +52,9 @@ class DisplayCallback:
             self.started_response = True
 
         self.buffer += token
+
+        if len(self.buffer) > self.MAX_BUFFER_CHARS:
+            self.buffer = self.buffer[-self.MAX_BUFFER_CHARS:]
 
         clean = self.normalize_text(self.buffer)
 

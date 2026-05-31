@@ -27,11 +27,11 @@ from assistant_ui import (
     AssistantUI
 )
 
-from audio_service import (
+from audioService import (
     AudioService
 )
 
-from chat_service import (
+from chatService import (
     ChatService
 )
 

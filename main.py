@@ -1,31 +1,5 @@
 import gc
-import time
 import uasyncio as asyncio
-import ujson
-from machine import Pin
-import re
-# from buzzerplayer.melodies import melody
-from buzzerplayer.buzzer_player import BuzzerPlayer
-
-from tools.wifi_connector import conectar_wifi
-
-from display.emotion_display import EmotionDisplay
-from display.displaycallback import DisplayCallback
-
-from llmclients.openai import OpenAI
-
-from audio_transcriber.i2s_microphone import (
-    INMP441Microphone,
-    write_wav_header
-)
-
-from llmclients.openaistreamclient import (
-    OpenAIStreamClient
-)
-
-from audio_transcriber.config import (
-    SAMPLE_RATE
-)
 
 from config import (
     API_KEY,
@@ -33,340 +7,153 @@ from config import (
     PASSWORD
 )
 
-melody = [
-    [
-        'Star Trek intro', 
-        80, 'NOTE_D4', '-8', 'NOTE_G4', '16', 
-        'NOTE_C5', '-4', 'NOTE_B4', '8', 
-        'NOTE_G4', '-16', 'NOTE_E4', '-16', 
-        'NOTE_A4', '-16', 'NOTE_D5', '2'
-    ]
-]
-
-gc.collect()
-
-# =========================================================
-# CONFIG
-# =========================================================
-
-RECORD_SECONDS = 5
-OUTPUT_FILE = "test.wav"
-BUTTON_PIN = 4
-
-# =========================================================
-# BUTTON
-# =========================================================
-
-button = Pin(
-    BUTTON_PIN,
-    Pin.IN,
-    Pin.PULL_UP
+from tools.wifi_connector import (
+    conectar_wifi
 )
 
-# =========================================================
-# MICROPHONE
-# =========================================================
-
-mic = INMP441Microphone(
-    sample_rate=SAMPLE_RATE,
-    sck_pin=32,
-    ws_pin=25,
-    sd_pin=33
+from display.emotion_display import (
+    EmotionDisplay
 )
 
-# =========================================================
-# CHAT
-# =========================================================
+from llmclients.openai import (
+    OpenAI
+)
 
-async def run_chat(
-    ollama,
-    prompt,
-    callback,
-    display,
-    player
-):
+from buzzerplayer.buzzer_player import (
+    BuzzerPlayer
+)
 
-    callback.started_response = False
+from assistantUI.assistantUI import (
+    AssistantUI
+)
 
-    display.think()
-    display.set_message("Thinking...")
+from audioService import (
+    AudioService
+)
 
-    await asyncio.sleep(1)
+from chatService import (
+    ChatService
+)
 
-    try:
 
-        response = ollama.chat(
-            prompt,
-            stream=True,
-            callback=callback.on_token
+class AssistantApplication:
+
+    def __init__(self):
+
+        self.display = EmotionDisplay()
+
+        self.ui = AssistantUI(
+            self.display
         )
 
-        print(response)
-
-        display.idle()
-
-    except Exception as error:
-
-        print("Chat error:", error)
-
-        display.error()
-        display.set_message(str(error))
-
-    try:
-
-        await player.play_async(
-            melody[0]
+        self.player = BuzzerPlayer(
+            buzzer_pin=14,
+            volume=600
         )
 
-    except Exception as error:
-
-        print("Player error:", error)
-
-# =========================================================
-# RECORD
-# =========================================================
-
-def record_wav(display):
-
-    gc.collect()
-
-    print("Recording...")
-
-    total_pcm_bytes = 0
-
-    with open(OUTPUT_FILE, "wb") as f:
-
-        f.seek(44)
-
-        start = time.time()
-
-        while (
-            time.time() - start <
-            RECORD_SECONDS
-        ):
-
-            chunk = mic.read_pcm16()
-
-            if chunk:
-
-                written = f.write(chunk)
-
-                total_pcm_bytes += written
-
-        f.seek(0)
-
-        write_wav_header(
-            file=f,
-            sample_rate=SAMPLE_RATE,
-            pcm_size=total_pcm_bytes
+        self.ollama = OpenAI(
+            api_key=API_KEY
         )
 
-    print("Done.")
-    print("PCM bytes:", total_pcm_bytes)
-    print("Saved:", OUTPUT_FILE)
-
-# =========================================================
-# TRANSCRIBE
-# =========================================================
-
-def transcribe_wav():
-
-    gc.collect()
-
-    client = OpenAIStreamClient(
-        api_key=API_KEY
-    )
-
-    try:
-
-        print("Connecting...")
-
-        client.connect()
-
-        print("Uploading WAV...")
-
-        client.send_wav_file(
-            OUTPUT_FILE
+        self.audio = AudioService(
+            api_key=API_KEY,
+            ui=self.ui
         )
 
-        print("Reading response...")
-
-        response = client.read_response()
-        match = re.search(
-            r'"text"\s*:\s*"([^"]*)"',
-            response
+        self.chat = ChatService(
+            ollama=self.ollama,
+            ui=self.ui,
+            player=self.player,
+            display=self.display
         )
 
-        if match:
-            text = match.group(1)
-        else:
-            text = ""
+    async def initialize(self):
 
-        return text
+        await self.ui.start()
 
-    finally:
+        self.ui.startup()
+
+        await asyncio.sleep(1)
+
+        self.ui.connecting_wifi()
+
+        await asyncio.sleep(1)
+
+        conectar_wifi(
+            SSID,
+            PASSWORD
+        )
+
+        self.ui.idle()
+
+    async def run(self):
+
+        await self.initialize()
+
+        while True:
+
+            try:
+
+                question = await self.audio.listen()
+
+                if not question:
+
+                    await asyncio.sleep_ms(50)
+
+                    continue
+
+                await self.chat.ask(
+                    question
+                )
+
+                
+
+                gc.collect()
+
+            except KeyboardInterrupt:
+
+                print("\nEncerrando...")
+
+                break
+
+            except Exception as error:
+
+                print("Erro:", error)
+
+                self.ui.error(
+                    "Erro na requisicao"
+                )
+
+                await asyncio.sleep(2)
+
+                gc.collect()
+
+        self.shutdown()
+
+    def shutdown(self):
 
         try:
-            client.close()
+            self.display.sleep()
         except:
             pass
 
-        gc.collect()
+        try:
+            self.player.stop_song()
+        except:
+            pass
 
-# =========================================================
-# AUDIO
-# =========================================================
+        try:
+            self.ui.stop()
+        except:
+            pass
 
-async def get_audio(display):
-
-    if button.value() != 0:
-        return None
-
-    print("Button pressed")
-
-
-#     time.sleep_ms(200)
-
-    if button.value() != 0:
-        display.idle()
-        display.set_message("Como posso Ajudar?")
-        return None
-
-    gc.collect()
-    await asyncio.sleep(1)
-    
-    display.think()
-    display.set_message("Escutando...")
-    await asyncio.sleep(1)
-
-    record_wav(display)
-
-    gc.collect()
-
-    text = transcribe_wav()
-
-    print("Transcribed:", text)
-
-    while button.value() == 0:
-        await asyncio.sleep_ms(10)
-
-    gc.collect()
-    display.idle()
-    display.set_message("Como posso Ajudar?")
-
-    return text
-
-# =========================================================
-# MAIN
-# =========================================================
 
 async def main():
 
-    display = EmotionDisplay()
+    app = AssistantApplication()
 
-    asyncio.create_task(
-        display.run()
-    )
+    await app.run()
 
-    player = BuzzerPlayer(
-        buzzer_pin=14,
-        volume=600
-    )
-
-    ollama = OpenAI(
-        api_key=API_KEY
-    )
-
-    callback = DisplayCallback(
-        display
-    )
-
-    display.set_message(
-        "Assistente iniciado"
-    )
-
-    await asyncio.sleep(1)
-
-    display.set_message(
-        "Conectando WiFi..."
-    )
-
-    await asyncio.sleep(1)
-
-    conectar_wifi(
-        SSID,
-        PASSWORD
-    )
-
-    display.set_message(
-        "Como posso ajudar?"
-    )
-
-    await asyncio.sleep(1)
-
-    print("Press button to record")
-
-    while True:
-
-        try:
-
-            user_question = await get_audio(display)
-
-            if not user_question:
-                await asyncio.sleep_ms(50)
-                continue
-
-            callback.buffer = ""
-
-            prompt = (
-                "Voce e um mini assistente para um display OLED 128x64. "
-                "Sua resposta sera exibida em uma unica linha com texto corrido. "
-                "Responda de forma curta, clara e natural. "
-                "Nao use acentuacao. "
-                "Evite listas, markdown, emojis e quebras de linha. "
-                "Use no maximo uma frase curta. "
-                f"Pergunta do usuario: {user_question}"
-            )
-
-            await run_chat(
-                ollama,
-                prompt,
-                callback,
-                display,
-                player
-            )
-
-            gc.collect()
-
-        except KeyboardInterrupt:
-
-            print("\nEncerrando...")
-
-            display.sleep()
-
-            break
-
-        except Exception as error:
-
-            print("Erro:", error)
-
-            display.error()
-
-            display.set_message(
-                "Erro na requisicao"
-            )
-
-            await asyncio.sleep(2)
-
-            gc.collect()
-
-    player.stop_song()
-
-    display.stop()
-
-# =========================================================
-# START
-# =========================================================
 
 if __name__ == "__main__":
 

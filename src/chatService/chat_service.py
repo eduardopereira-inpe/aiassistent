@@ -42,13 +42,12 @@ class ChatService:
             f"Pergunta do usuario: {question}"
         )
 
-        response = self.ollama.chat(
+        self.ollama.chat(
             prompt,
             stream=True,
-            callback=self.callback.on_token
+            callback=self.callback.on_token,
+            keep_full_response=False
         )
-
-        print(response)
 
         try:
 

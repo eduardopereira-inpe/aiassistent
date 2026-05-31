@@ -1,11 +1,72 @@
 import uasyncio as asyncio
 
+try:
+    import ujson as json
+except ImportError:
+    import json
+
 
 class AssistantUI:
 
-    def __init__(self, display):
+    DEFAULT_MESSAGES = {
+        "startup": "Assistente iniciado",
+        "connecting_wifi": "Conectando WiFi...",
+        "idle": "Como posso ajudar?",
+        "listening": "Escutando...",
+        "recording": "Gravando...",
+        "transcribing": "Transcrevendo...",
+        "thinking": "Pensando..."
+    }
+
+    def __init__(
+        self,
+        display,
+        messages_path="src/assistantUI/messages.json",
+        language="pt-BR"
+    ):
 
         self.display = display
+        self.messages = self._load_messages(
+            messages_path,
+            language
+        )
+
+    def _load_messages(
+        self,
+        messages_path,
+        language
+    ):
+
+        try:
+
+            with open(messages_path, "r") as f:
+                content = json.loads(f.read())
+
+            if (
+                isinstance(content, dict) and
+                language in content and
+                isinstance(content[language], dict)
+            ):
+                language_messages = content[language]
+
+            elif isinstance(content, dict):
+                language_messages = content
+
+            else:
+                language_messages = {}
+
+        except Exception:
+
+            language_messages = {}
+
+        return language_messages
+
+    def _message(self, key):
+
+        return self.messages.get(
+            key,
+            self.DEFAULT_MESSAGES.get(key, "")
+        )
 
     async def start(self):
 
@@ -17,54 +78,61 @@ class AssistantUI:
 
         self.display.idle()
         self.display.set_message(
-            "Assistente iniciado"
+            self._message("startup")
         )
 
     def connecting_wifi(self):
 
         self.display.think()
         self.display.set_message(
-            "Conectando WiFi..."
+            self._message("connecting_wifi")
         )
 
     def idle(self):
 
         self.display.idle()
         self.display.set_message(
-            "Como posso ajudar?"
+            self._message("idle")
         )
 
     def listening(self):
 
         self.display.think()
         self.display.set_message(
-            "Escutando..."
+            self._message("listening")
         )
 
     def recording(self):
 
         self.display.think()
         self.display.set_message(
-            "Gravando..."
+            self._message("recording")
         )
 
     def transcribing(self):
 
         self.display.think()
         self.display.set_message(
-            "Transcrevendo..."
+            self._message("transcribing")
         )
 
     def thinking(self):
 
         self.display.think()
         self.display.set_message(
-            "Pensando..."
+            self._message("thinking")
         )
 
     def error(self, message):
 
         self.display.error()
+        self.display.set_message(
+            message
+        )
+
+    def set_response(self, message):
+
+        self.display.idle()
         self.display.set_message(
             message
         )

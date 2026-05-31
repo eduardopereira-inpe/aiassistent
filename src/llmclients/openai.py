@@ -1,5 +1,6 @@
 import urequests
 import ujson
+import gc
 
 
 # =========================================================
@@ -22,6 +23,35 @@ class OpenAI:
 
         self.base_url = base_url
 
+    def _debug_mem(self, stage):
+
+        try:
+            print(
+                "[openai]",
+                stage,
+                "mem_free=",
+                gc.mem_free(),
+                "mem_alloc=",
+                gc.mem_alloc()
+            )
+        except Exception:
+            print("[openai]", stage, "mem_unavailable")
+
+    def _sleep_ms(self, milliseconds):
+
+        try:
+            import utime
+            utime.sleep_ms(milliseconds)
+            return
+        except Exception:
+            pass
+
+        try:
+            import time
+            time.sleep(milliseconds / 1000)
+        except Exception:
+            pass
+
     def chat(
         self,
         prompt,
@@ -29,11 +59,25 @@ class OpenAI:
         max_tokens=100,
         temperature=0.7,
         stream=True,
-        callback=None
+        callback=None,
+        keep_full_response=True
     ):
 
+        stage = "chat_start"
+        token_count = 0
+        self._debug_mem(stage)
+        print(
+            "[openai] request model=",
+            self.model,
+            "stream=",
+            stream,
+            "keep_full_response=",
+            keep_full_response,
+            "prompt_len=",
+            len(prompt)
+        )
 
-
+        stage = "build_payload"
         data = {
             "model": self.model,
             "messages": [
@@ -51,10 +95,16 @@ class OpenAI:
             "stream": stream
         }
         
-        
+        self._debug_mem(stage)
+
+        stage = "serialize_payload"
         json_bytes = ujson.dumps(data).encode("utf-8")
+
+        print("[openai] payload_bytes=", len(json_bytes))
+        self._debug_mem(stage)
         
         # 2. Configure os cabeçalhos manualmente, incluindo o Content-Length exato
+        stage = "build_headers"
         headers = {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + self.api_key,
@@ -65,16 +115,59 @@ class OpenAI:
 
         try:
 
-            response = urequests.post(
-                self.base_url,
-                headers=headers,
-                data=json_bytes,
-                stream=stream
-            )
+            stage = "http_post"
+            self._debug_mem(stage)
+
+            post_error = None
+
+            for attempt in range(2):
+
+                stage = "http_post_try_" + str(attempt + 1)
+
+                try:
+
+                    response = urequests.post(
+                        self.base_url,
+                        headers=headers,
+                        data=json_bytes,
+                        stream=stream
+                    )
+
+                    self._debug_mem(
+                        "http_post_done_try_" +
+                        str(attempt + 1)
+                    )
+                    break
+
+                except Exception as current_error:
+
+                    post_error = current_error
+                    print(
+                        "[openai] post_error try=",
+                        attempt + 1,
+                        "error=",
+                        current_error
+                    )
+
+                    if attempt == 0:
+                        gc.collect()
+                        self._debug_mem("http_post_retry_gc")
+                        self._sleep_ms(250)
+                        continue
+
+            if response is None:
+                raise Exception(post_error)
+
+            # Release payload references after request is established.
+            json_bytes = None
+            data = None
+            gc.collect()
 
 
 
             if response.status_code != 200:
+
+                print("[openai] non_200 status=", response.status_code)
 
                 raise Exception(
                     f"HTTP {response.status_code}: {response.text}"
@@ -86,7 +179,13 @@ class OpenAI:
 
             if stream:
 
-                full_response = ""
+                stage = "stream_start"
+                self._debug_mem(stage)
+
+                if keep_full_response:
+                    full_response = ""
+                else:
+                    full_response = None
 
                 while True:
 
@@ -121,25 +220,46 @@ class OpenAI:
 
                         if token:
 
-                            full_response += token
+                            token_count += 1
+
+                            if token_count % 20 == 0:
+                                self._debug_mem(
+                                    "stream_tokens_" +
+                                    str(token_count)
+                                )
+
+                            if keep_full_response:
+                                full_response += token
 
                             if callback:
                                 callback(token)
                             else:
                                 print(token, end="")
 
-                    except:
-                        pass
+                    except Exception as parse_error:
+                        print(
+                            "[openai] stream_parse_error:",
+                            parse_error
+                        )
 
                 print()
+                self._debug_mem("stream_end")
+
+                if keep_full_response:
+                    return {
+                        "response": full_response
+                    }
 
                 return {
-                    "response": full_response
+                    "response": ""
                 }
 
             # =================================================
             # NORMAL MODE
             # =================================================
+
+            stage = "normal_mode_parse_json"
+            self._debug_mem(stage)
 
             result = response.json()
 
@@ -160,6 +280,9 @@ class OpenAI:
             }
 
         except Exception as error:
+
+            print("[openai] exception_stage=", stage)
+            self._debug_mem("exception")
 
             raise Exception(
                 f"OpenAI Error: {error}"

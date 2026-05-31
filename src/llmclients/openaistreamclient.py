@@ -54,32 +54,111 @@ class OpenAIStreamClient:
 
         self.sock = None
 
+    def _debug_mem(self, stage):
+
+        try:
+            print(
+                "[openaistream]",
+                stage,
+                "mem_free=",
+                gc.mem_free(),
+                "mem_alloc=",
+                gc.mem_alloc()
+            )
+        except Exception:
+            print("[openaistream]", stage, "mem_unavailable")
+
+    def _sleep_ms(self, milliseconds):
+
+        try:
+            import utime
+            utime.sleep_ms(milliseconds)
+            return
+        except Exception:
+            pass
+
+        try:
+            import time
+            time.sleep(milliseconds / 1000)
+        except Exception:
+            pass
+
     def connect(self):
 
         gc.collect()
+        self._debug_mem("connect_start")
 
         addr = socket.getaddrinfo(
             self.host,
             self.port
         )[0][-1]
 
+        print("[openaistream] resolved_addr=", addr)
+        self._debug_mem("after_dns")
+
         sock = socket.socket()
+
+        self._debug_mem("socket_created")
 
         sock.connect(addr)
 
-        self.sock = ssl.wrap_socket(
-            sock,
-            server_hostname=self.host
-        )
+        self._debug_mem("tcp_connected")
+
+        # Try to reduce fragmentation right before TLS handshake,
+        # which is the highest-memory step in this flow.
+        gc.collect()
+        self._debug_mem("before_tls")
+
+        try:
+
+            self.sock = ssl.wrap_socket(
+                sock,
+                server_hostname=self.host
+            )
+
+        except OSError as tls_error:
+
+            # Fallback for low-memory situations: retry TLS without SNI.
+            if len(tls_error.args) > 0 and tls_error.args[0] == 12:
+
+                print("[openaistream] tls_enomem_retry_no_sni")
+                self._debug_mem("tls_enomem")
+
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+
+                gc.collect()
+                self._debug_mem("before_tls_retry")
+
+                sock = socket.socket()
+                sock.connect(addr)
+
+                self.sock = ssl.wrap_socket(sock)
+
+            else:
+                raise
+
+        except TypeError:
+
+            # Compatibility path for ports that do not support
+            # server_hostname in ssl.wrap_socket.
+            self.sock = ssl.wrap_socket(sock)
+
+        self._debug_mem("tls_ready")
+        print("[openaistream] connect_done")
 
     def send_wav_file(
         self,
         filename
     ):
 
+        self._debug_mem("send_start")
+
         wav_size = os.stat(filename)[6]
 
-        print("WAV size:", wav_size)
+        print("[openaistream] wav_size=", wav_size)
 
         # multipart start
         part1 = (
@@ -104,6 +183,17 @@ class OpenAIStreamClient:
             len(part2)
         )
 
+        print(
+            "[openaistream] multipart_bytes start=",
+            len(part1),
+            "end=",
+            len(part2),
+            "content_length=",
+            content_length
+        )
+
+        self._debug_mem("headers_build")
+
         headers = (
             "POST /v1/audio/transcriptions HTTP/1.1\r\n"
             "Host: api.openai.com\r\n"
@@ -117,15 +207,32 @@ class OpenAIStreamClient:
             content_length
         )
 
-        print("Sending headers...")
+        print("[openaistream] sending_headers")
 
-        self.sock.write(headers.encode())
+        try:
+            self.sock.write(headers.encode())
+        except OSError as error:
+            print("[openaistream] write_error stage=headers error=", error)
+            self._debug_mem("write_error_headers")
+            raise
 
-        print("Sending multipart start...")
+        self._debug_mem("headers_sent")
 
-        self.sock.write(part1)
+        print("[openaistream] sending_multipart_start")
 
-        print("Sending WAV file...")
+        try:
+            self.sock.write(part1)
+        except OSError as error:
+            print("[openaistream] write_error stage=part1 error=", error)
+            self._debug_mem("write_error_part1")
+            raise
+
+        self._debug_mem("multipart_start_sent")
+
+        print("[openaistream] sending_wav_chunks")
+
+        chunk_count = 0
+        sent_bytes = 0
 
         with open(filename, "rb") as f:
 
@@ -136,15 +243,55 @@ class OpenAIStreamClient:
                 if not chunk:
                     break
 
-                self.sock.write(chunk)
+                try:
+                    self.sock.write(chunk)
+                except OSError as error:
+                    print(
+                        "[openaistream] write_error stage=wav_chunk",
+                        "chunk=",
+                        chunk_count + 1,
+                        "sent_bytes=",
+                        sent_bytes,
+                        "error=",
+                        error
+                    )
+                    self._debug_mem("write_error_wav")
+                    raise
 
-        print("Sending multipart end...")
+                chunk_count += 1
+                sent_bytes += len(chunk)
 
-        self.sock.write(part2)
+                if chunk_count % 10 == 0:
+                    print(
+                        "[openaistream] chunks=",
+                        chunk_count,
+                        "sent_bytes=",
+                        sent_bytes
+                    )
+                    self._debug_mem(
+                        "wav_upload_" + str(chunk_count)
+                    )
+
+        print("[openaistream] wav_upload_done bytes=", sent_bytes)
+        self._debug_mem("before_multipart_end")
+
+        print("[openaistream] sending_multipart_end")
+
+        try:
+            self.sock.write(part2)
+        except OSError as error:
+            print("[openaistream] write_error stage=part2 error=", error)
+            self._debug_mem("write_error_part2")
+            raise
+
+        self._debug_mem("send_done")
 
     def read_response(self):
 
+        self._debug_mem("read_start")
+
         response = b""
+        read_chunks = 0
 
         while True:
 
@@ -156,16 +303,34 @@ class OpenAIStreamClient:
                     break
 
                 response += data
+                read_chunks += 1
+
+                if read_chunks % 10 == 0:
+                    print(
+                        "[openaistream] read_chunks=",
+                        read_chunks,
+                        "response_bytes=",
+                        len(response)
+                    )
+                    self._debug_mem(
+                        "read_chunks_" + str(read_chunks)
+                    )
 
             except OSError as e:
 
-                print("Socket read error:", e)
+                print("[openaistream] socket_read_error:", e)
+                self._debug_mem("read_socket_error")
 
                 break
+
+        print("[openaistream] read_done bytes=", len(response))
+        self._debug_mem("read_end")
 
         return response.decode()
 
     def close(self):
 
         if self.sock:
+            self._debug_mem("close_start")
             self.sock.close()
+            print("[openaistream] socket_closed")

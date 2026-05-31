@@ -1,0 +1,20 @@
+{
+  "pt-BR": {
+    "startup": "Assistente iniciado",
+    "connecting_wifi": "Conectando WiFi...",
+    "idle": "Como posso ajudar?",
+    "listening": "Escutando...",
+    "recording": "Gravando...",
+    "transcribing": "Transcrevendo...",
+    "thinking": "Pensando..."
+  },
+  "en-US": {
+    "startup": "Assistant started",
+    "connecting_wifi": "Connecting WiFi...",
+    "idle": "How can I help?",
+    "listening": "Listening...",
+    "recording": "Recording...",
+    "transcribing": "Transcribing...",
+    "thinking": "Thinking..."
+  }
+}
