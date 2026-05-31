@@ -1,98 +1,109 @@
 # MicroPython AI Assistant
 
-A modular, reusable MicroPython assistant library for ESP32-class boards.
+Reusable MicroPython voice assistant library for ESP32-class boards.
 
-This project captures audio from an INMP441 microphone, sends speech for transcription, generates an LLM response, and renders status/output on an OLED display with optional buzzer feedback.
+Repository: https://github.com/eduardopereira-inpe/micropython-aiassistent
 
-The codebase is organized as a library-first package under `src/assistant`, with runnable scripts in `src/examples`.
+This project captures audio from an INMP441 microphone, sends it to OpenAI transcription, generates a chat response, and renders status/output on an SSD1306 OLED display with optional buzzer feedback.
 
-## Features
+## Highlights
 
-- Domain-based package structure (`assistant.*`) designed for reuse.
-- End-to-end voice assistant flow:
-	- Button press -> record WAV -> transcribe -> chat completion -> OLED output.
-- OLED expression/status UI with message internationalization support (`messages.json`).
-- MicroPython-focused network/memory diagnostics in OpenAI clients.
-- Retry/fallback logic for common ESP32 network/TLS instability scenarios.
-- Initial `manifest.py` for future `mip`-based distribution.
+- Library-first architecture under `src/assistant`
+- Domain-oriented package organization (`assistant.audio`, `assistant.llm`, etc.)
+- Runnable examples under `src/examples`
+- UI messages externalized in JSON (`assistant/ui/messages.json`)
+- Network/memory diagnostics for constrained MicroPython environments
+- Initial `manifest.py` for future `mip` packaging
 
-## Project Layout
+## Repository Structure
 
 ```text
 src/
-	assistant/
-		__init__.py
-		config.py
-		app/
-			__init__.py
-			application.py
-		ui/
-			__init__.py
-			ui.py
-			messages.json
-		audio/
-			__init__.py
-			service.py
-			transcriber.py
-			i2s_microphone.py
-			wav.py
-			interfaces.py
-			config.py
-		chat/
-			__init__.py
-			service.py
-		display/
-			__init__.py
-			emotion_display.py
-			display_callback.py
-			ssd1306.py
-		llm/
-			__init__.py
-			openai.py
-			ollama.py
-			stream_client.py
-		buzzer/
-			__init__.py
-			player.py
-			melodies.py
-			notes.py
-		network/
-			__init__.py
-			wifi.py
-		utils/
-			__init__.py
-			dotenv.py
-			asyncinput.py
-	examples/
-		main.py
-		main_test.py
-		main_old.py
-		button_demo.py
+  assistant/
+    __init__.py
+    config.py
+    app/
+      __init__.py
+      application.py
+    ui/
+      __init__.py
+      ui.py
+      messages.json
+    audio/
+      __init__.py
+      service.py
+      transcriber.py
+      i2s_microphone.py
+      wav.py
+      interfaces.py
+      config.py
+    chat/
+      __init__.py
+      service.py
+    display/
+      __init__.py
+      emotion_display.py
+      display_callback.py
+      ssd1306.py
+    llm/
+      __init__.py
+      openai.py
+      ollama.py
+      stream_client.py
+    buzzer/
+      __init__.py
+      player.py
+      melodies.py
+      notes.py
+    network/
+      __init__.py
+      wifi.py
+    utils/
+      __init__.py
+      dotenv.py
+      asyncinput.py
+  examples/
+    main.py
+    main_test.py
+    main_old.py
+    button_demo.py
 
 manifest.py
+README.md
 ```
 
-## Requirements
+## Hardware
 
-### Hardware
+- ESP32 board running MicroPython
+- INMP441 I2S microphone
+- SSD1306 OLED display (I2C)
+- Push button
+- Optional passive buzzer
 
-- ESP32-compatible board running MicroPython.
-- INMP441 I2S microphone.
-- SSD1306 OLED display (I2C).
-- Push button.
-- Optional passive buzzer.
+## Software Requirements
 
-### Software
+MicroPython firmware/modules compatible with:
 
-- MicroPython firmware compatible with:
-	- `uasyncio`
-	- `urequests`
-	- `ujson`
-	- `machine`, `network`, `ssl`, `socket`
+- `uasyncio`
+- `urequests`
+- `ujson`
+- `machine`
+- `network`
+- `ssl`
+- `socket`
 
-## Configuration
+## Setup
 
-Create an `env.txt` file on the device filesystem (same root where scripts run) with:
+### 1) Clone repository
+
+```bash
+git clone https://github.com/eduardopereira-inpe/micropython-aiassistent.git
+cd micropython-aiassistent
+```
+
+### 2) Create `env.txt` on device
+
+Create `env.txt` at device root with:
 
 ```text
 API_KEY=your_openai_api_key
@@ -100,17 +111,35 @@ WIFI_SSID=your_wifi_name
 WIFI_PASS=your_wifi_password
 ```
 
-`assistant.config` reads this file and exposes:
+`assistant.config` loads this file and exposes:
 
 - `API_KEY`
 - `SSID`
 - `PASSWORD`
 
-## Running Examples
+### 3) Deploy to board
+
+Copy `src/assistant` and `src/examples` to your device filesystem.
+
+Example with `mpremote`:
+
+```bash
+mpremote connect auto fs cp -r src/assistant :/
+mpremote connect auto fs cp -r src/examples :/
+mpremote connect auto fs cp env.txt :/
+```
+
+## Running
 
 ### Main assistant app
 
-Run:
+Run `examples/main.py` on device, for example:
+
+```bash
+mpremote connect auto run src/examples/main.py
+```
+
+Or from REPL:
 
 ```python
 import uasyncio as asyncio
@@ -119,28 +148,22 @@ from examples.main import main
 asyncio.run(main())
 ```
 
-Or set `src/examples/main.py` as your board entrypoint.
+### Button demo (transcription only)
 
-### Minimal button transcription demo
-
-Run:
-
-```python
-import examples.button_demo
+```bash
+mpremote connect auto run src/examples/button_demo.py
 ```
 
-This script records audio when the button is pressed, uploads WAV to transcription, and prints the raw response.
+## Core Entry Points
 
-## Library Entry Points
-
-- Application orchestration: `assistant.app.application.AssistantApplication`
+- App orchestrator: `assistant.app.application.AssistantApplication`
 - UI controller: `assistant.ui.ui.AssistantUI`
 - Audio flow: `assistant.audio.service.AudioService`
 - Chat flow: `assistant.chat.service.ChatService`
 - OpenAI chat client: `assistant.llm.openai.OpenAI`
-- OpenAI transcription stream client: `assistant.llm.stream_client.OpenAIStreamClient`
+- OpenAI stream transcription client: `assistant.llm.stream_client.OpenAIStreamClient`
 
-## Import Style
+## Import Convention
 
 All internal imports use absolute package paths:
 
@@ -151,18 +174,16 @@ from assistant.llm.openai import OpenAI
 from assistant.network.wifi import conectar_wifi
 ```
 
-This keeps the package layout stable and ready for packaging/distribution.
+## Memory/Network Notes (ESP32)
 
-## Memory and Network Notes (ESP32)
+The project includes mitigations for constrained RAM and unstable links:
 
-The project includes targeted diagnostics and mitigations for constrained memory/network environments:
+- TLS/post diagnostics in transcription and chat clients
+- Retry strategy for transient socket failures
+- I2S mic buffer release before TLS-heavy operations
+- Streaming mode that avoids accumulating full chat response in RAM
 
-- TLS connection diagnostics in transcription and chat clients.
-- Retry strategy for transient socket failures.
-- Audio flow releases I2S buffers before TLS handshake to reduce ENOMEM risk.
-- Optional streaming mode without accumulating full response payload in memory.
-
-If you hit instability, check serial logs with prefixes:
+If issues occur, inspect serial logs with prefixes:
 
 - `[openaistream]`
 - `[openai]`
@@ -170,19 +191,17 @@ If you hit instability, check serial logs with prefixes:
 
 ## Packaging (mip)
 
-`manifest.py` has an initial package declaration:
+Current `manifest.py`:
 
 ```python
 metadata(
-		version="0.1.0",
-		description="MicroPython assistant library",
+    version="0.1.0",
+    description="MicroPython assistant library",
 )
 
 package("assistant", base_path="./src")
 ```
 
-This is ready to evolve for full `mip` publication workflow.
+## Status
 
-## Current Status
-
-This repository is actively evolving. The structure is now library-oriented, with examples separated from reusable code and imports standardized around `assistant.*`.
+The project is under active development and now follows a reusable library layout with clear separation between framework code and runnable examples.
