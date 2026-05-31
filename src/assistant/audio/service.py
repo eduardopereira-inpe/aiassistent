@@ -230,6 +230,6 @@ class AudioService:
         while self.button.value() == 0:
             await asyncio.sleep_ms(10)
 
-        self.ui.idle()
+        # self.ui.idle()
 
         return text

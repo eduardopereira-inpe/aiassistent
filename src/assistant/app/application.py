@@ -1,6 +1,6 @@
 import gc
 import uasyncio as asyncio
-
+import utime
 from assistant.config import (
     API_KEY,
     SSID,
@@ -41,6 +41,12 @@ class AssistantApplication:
     def __init__(self):
 
         self.display = EmotionDisplay()
+
+        self.sleep_time = 30
+
+        self._state = "idle"
+
+        self._current_time = utime.time()
 
         self.ui = AssistantUI(
             self.display
@@ -99,8 +105,15 @@ class AssistantApplication:
                 if not question:
 
                     await asyncio.sleep_ms(50)
+                    if utime.time() - self._current_time > self.sleep_time:
+                        self.ui.sleep()
+                        self._state = "sleep"
 
                     continue
+                self._current_time = utime.time()
+                if self._state == "sleep":
+                    self.ui.idle()
+                    self._state = "idle"
 
                 gc.collect()
                 await asyncio.sleep_ms(50)

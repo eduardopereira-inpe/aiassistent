@@ -127,6 +127,13 @@ class AssistantUI:
             self._message("thinking")
         )
 
+    def sleep(self):
+
+        self.display.sleep()
+        self.display.set_message(
+            self._message("")
+        )
+
     def error(self, message):
 
         self.display.error()
