@@ -74,6 +74,10 @@ class AssistantUI:
             self.display.run()
         )
 
+    async def wait_message_cycle(self):
+
+        await self.display.wait_message_cycle()
+
     def startup(self):
 
         self.display.idle()

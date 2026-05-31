@@ -51,7 +51,7 @@ class ChatService:
             keep_full_response=False
         )
 
-        await asyncio.sleep_ms(500)
+        await asyncio.sleep(0.5)
 
         try:
 
@@ -80,5 +80,8 @@ class ChatService:
 
         except:
             pass
+
+        if self.callback.started_response:
+            await self.ui.wait_message_cycle()
 
         self.ui.idle()

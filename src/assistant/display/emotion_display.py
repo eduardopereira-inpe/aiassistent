@@ -14,6 +14,8 @@ class EmotionDisplay:
     TEXT_Y = 54
 
     MAX_MESSAGE_SIZE = 120
+    TEXT_SCROLL_STEP = 2
+    FRAME_DELAY_MS = 50
 
     def __init__(self, scl_pin=22, sda_pin=21):
 
@@ -32,6 +34,8 @@ class EmotionDisplay:
 
         self.message = ""
         self.scroll_x = self.WIDTH
+        self.message_cycle_done = True
+        self.loop_message = False
 
         self.running = True
 
@@ -68,10 +72,12 @@ class EmotionDisplay:
 
     def set_message(self, message):
 
-        self.message = message[-self.MAX_MESSAGE_SIZE:]
+        trimmed = message[-self.MAX_MESSAGE_SIZE:]
 
-        if self.scroll_x < -200:
+        if trimmed != self.message:
+            self.message = trimmed
             self.scroll_x = self.WIDTH
+            self.message_cycle_done = False
 
     def append_message(self, text):
 
@@ -81,6 +87,12 @@ class EmotionDisplay:
 
         self.message = ""
         self.scroll_x = self.WIDTH
+        self.message_cycle_done = True
+
+    async def wait_message_cycle(self):
+
+        while not self.message_cycle_done:
+            await asyncio.sleep_ms(20)
 
     def stop(self):
 
@@ -221,6 +233,15 @@ class EmotionDisplay:
         if not self.message:
             return
 
+        if self.message_cycle_done and not self.loop_message:
+            self.oled.text(
+                self.message,
+                self.scroll_x,
+                self.TEXT_Y,
+                1
+            )
+            return
+
         self.oled.text(
             self.message,
             self.scroll_x,
@@ -228,12 +249,18 @@ class EmotionDisplay:
             1
         )
 
-        self.scroll_x -= 2
+        self.scroll_x -= self.TEXT_SCROLL_STEP
 
         text_width = len(self.message) * 8
 
         if self.scroll_x < -text_width:
-            self.scroll_x = self.WIDTH
+            self.message_cycle_done = True
+
+            if self.loop_message:
+                self.scroll_x = self.WIDTH
+                self.message_cycle_done = False
+            else:
+                self.scroll_x = 0
 
     # =====================================================
     # Main Renderer
@@ -275,7 +302,7 @@ class EmotionDisplay:
 
             self.render()
 
-            await asyncio.sleep_ms(100)
+            await asyncio.sleep_ms(self.FRAME_DELAY_MS)
 
 
 if __name__ == "__main__":
