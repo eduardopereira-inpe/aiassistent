@@ -21,7 +21,7 @@ class AssistantUI:
     def __init__(
         self,
         display,
-        messages_path="src/assistantUI/messages.json",
+        messages_path="src/assistant/ui/messages.json",
         language="pt-BR"
     ):
 

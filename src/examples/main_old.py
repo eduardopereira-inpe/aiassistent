@@ -4,30 +4,30 @@ import uasyncio as asyncio
 import ujson
 from machine import Pin
 import re
-# from buzzerplayer.melodies import melody
-from buzzerplayer.buzzer_player import BuzzerPlayer
+# from assistant.buzzer.melodies import melody
+from assistant.buzzer.player import BuzzerPlayer
 
-from tools.wifi_connector import conectar_wifi
+from assistant.network.wifi import conectar_wifi
 
-from display.emotion_display import EmotionDisplay
-from display.displaycallback import DisplayCallback
+from assistant.display.emotion_display import EmotionDisplay
+from assistant.display.display_callback import DisplayCallback
 
-from llmclients.openai import OpenAI
+from assistant.llm.openai import OpenAI
 
-from audio_transcriber.i2s_microphone import (
+from assistant.audio.i2s_microphone import (
     INMP441Microphone,
     write_wav_header
 )
 
-from llmclients.openaistreamclient import (
+from assistant.llm.stream_client import (
     OpenAIStreamClient
 )
 
-from audio_transcriber.config import (
+from assistant.audio.config import (
     SAMPLE_RATE
 )
 
-from config import (
+from assistant.config import (
     API_KEY,
     SSID,
     PASSWORD

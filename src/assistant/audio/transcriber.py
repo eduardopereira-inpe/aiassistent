@@ -1,6 +1,6 @@
 import time
 
-from .wav import WavHeader
+from assistant.audio.wav import WavHeader
 
 
 class AudioTranscriber:

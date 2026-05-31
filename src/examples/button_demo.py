@@ -2,22 +2,22 @@ from machine import Pin
 import time
 import gc
 
-from audio_transcriber.i2s_microphone import (
+from assistant.audio.i2s_microphone import (
     INMP441Microphone,
     write_wav_header
 )
 
-from llmclients.openaistreamclient import (
+from assistant.llm.stream_client import (
     OpenAIStreamClient
 )
 
-from audio_transcriber.config import (
+from assistant.audio.config import (
     SAMPLE_RATE
 )
 
-from tools.wifi_connector import conectar_wifi
+from assistant.network.wifi import conectar_wifi
 
-from config import (
+from assistant.config import (
     API_KEY,
     SSID,
     PASSWORD

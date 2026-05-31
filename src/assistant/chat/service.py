@@ -1,4 +1,4 @@
-from display.displaycallback import (
+from assistant.display.display_callback import (
     DisplayCallback
 )
 

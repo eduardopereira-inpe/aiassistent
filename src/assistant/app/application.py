@@ -1,37 +1,37 @@
 import gc
 import uasyncio as asyncio
 
-from config import (
+from assistant.config import (
     API_KEY,
     SSID,
     PASSWORD
 )
 
-from tools.wifi_connector import (
+from assistant.network.wifi import (
     conectar_wifi
 )
 
-from display.emotion_display import (
+from assistant.display.emotion_display import (
     EmotionDisplay
 )
 
-from llmclients.openai import (
+from assistant.llm.openai import (
     OpenAI
 )
 
-from buzzerplayer.buzzer_player import (
+from assistant.buzzer.player import (
     BuzzerPlayer
 )
 
-from assistant_ui import (
+from assistant.ui.ui import (
     AssistantUI
 )
 
-from audioService import (
+from assistant.audio.service import (
     AudioService
 )
 
-from chatService import (
+from assistant.chat.service import (
     ChatService
 )
 
@@ -40,19 +40,15 @@ class AssistantApplication:
 
     def __init__(self):
 
-        self.display = (
-            EmotionDisplay()
-        )
+        self.display = EmotionDisplay()
 
         self.ui = AssistantUI(
             self.display
         )
 
-        self.player = (
-            BuzzerPlayer(
-                buzzer_pin=14,
-                volume=600
-            )
+        self.player = BuzzerPlayer(
+            buzzer_pin=14,
+            volume=600
         )
 
         self.ollama = OpenAI(
@@ -98,15 +94,11 @@ class AssistantApplication:
 
             try:
 
-                question = (
-                    await self.audio.listen()
-                )
+                question = await self.audio.listen()
 
                 if not question:
 
-                    await asyncio.sleep_ms(
-                        50
-                    )
+                    await asyncio.sleep_ms(50)
 
                     continue
 
@@ -118,11 +110,13 @@ class AssistantApplication:
 
             except KeyboardInterrupt:
 
+                print("\nEncerrando...")
+
                 break
 
             except Exception as error:
 
-                print(error)
+                print("Erro:", error)
 
                 self.ui.error(
                     "Erro na requisicao"
@@ -137,6 +131,11 @@ class AssistantApplication:
     def shutdown(self):
 
         try:
+            self.display.sleep()
+        except:
+            pass
+
+        try:
             self.player.stop_song()
         except:
             pass
@@ -145,15 +144,3 @@ class AssistantApplication:
             self.ui.stop()
         except:
             pass
-
-
-async def main():
-
-    app = AssistantApplication()
-
-    await app.run()
-
-
-if __name__ == "__main__":
-
-    asyncio.run(main())

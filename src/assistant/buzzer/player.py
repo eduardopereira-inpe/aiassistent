@@ -2,7 +2,7 @@ import uasyncio as asyncio
 
 from machine import Pin, PWM
 
-from .notes import notes
+from assistant.buzzer.notes import notes
 
 
 class BuzzerPlayer:

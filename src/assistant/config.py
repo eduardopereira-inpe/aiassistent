@@ -1,6 +1,6 @@
 
-from tools.load_dotenv import load_dotenv
-from tools.wifi_connector import conectar_wifi
+from assistant.utils.dotenv import load_dotenv
+from assistant.network.wifi import conectar_wifi
 
 
 

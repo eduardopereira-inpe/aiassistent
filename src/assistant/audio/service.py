@@ -5,16 +5,16 @@ import uasyncio as asyncio
 
 from machine import Pin
 
-from audio_transcriber.i2s_microphone import (
+from assistant.audio.i2s_microphone import (
     INMP441Microphone,
     write_wav_header
 )
 
-from audio_transcriber.config import (
+from assistant.audio.config import (
     SAMPLE_RATE
 )
 
-from llmclients.openaistreamclient import (
+from assistant.llm.stream_client import (
     OpenAIStreamClient
 )
 
