@@ -125,6 +125,8 @@ def record_wav(display):
     gc.collect()
 
     print("Recording...")
+    display.think()
+    display.set_message("Gravando...")
 
     total_pcm_bytes = 0
 
@@ -217,9 +219,11 @@ async def get_audio(display):
         return None
 
     print("Button pressed")
+    display.think()
+    display.set_message("Escutando...")
+    await asyncio.sleep(1)
 
-
-#     time.sleep_ms(200)
+    time.sleep_ms(200)
 
     if button.value() != 0:
         display.idle()
@@ -227,11 +231,6 @@ async def get_audio(display):
         return None
 
     gc.collect()
-    await asyncio.sleep(1)
-    
-    display.think()
-    display.set_message("Escutando...")
-    await asyncio.sleep(1)
 
     record_wav(display)
 

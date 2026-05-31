@@ -7,19 +7,21 @@ from audio_transcriber.i2s_microphone import (
     write_wav_header
 )
 
-from audio_transcriber.openai_stream_client import (
+from llmclients.openaistreamclient import (
     OpenAIStreamClient
 )
 
-from wifi_connector import conectar_wifi
+from audio_transcriber.config import (
+    SAMPLE_RATE
+)
 
-from tools.load_dotenv import load_dotenv
+from tools.wifi_connector import conectar_wifi
 
-config = load_dotenv()
-
-API_KEY = config.get("API_KEY")
-SSID = config.get("WIFI_SSID")
-PASSWORD = config.get("WIFI_PASS")
+from config import (
+    API_KEY,
+    SSID,
+    PASSWORD
+)
 
 # =========================================================
 # CONFIG
