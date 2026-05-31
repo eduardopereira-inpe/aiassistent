@@ -1,3 +1,5 @@
+import asyncio
+
 from assistant.display.display_callback import (
     DisplayCallback
 )
@@ -48,6 +50,8 @@ class ChatService:
             callback=self.callback.on_token,
             keep_full_response=False
         )
+
+        await asyncio.sleep_ms(500)
 
         try:
 
