@@ -102,6 +102,9 @@ class AssistantApplication:
 
                     continue
 
+                gc.collect()
+                await asyncio.sleep_ms(50)
+
                 await self.chat.ask(
                     question
                 )

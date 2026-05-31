@@ -28,7 +28,7 @@ class AudioService:
         button_pin=4,
         record_seconds=5,
         output_file="test.wav",
-        mic_ibuf=32768
+        mic_ibuf=16384
     ):
 
         self.api_key = api_key
@@ -223,10 +223,9 @@ class AudioService:
         # Free I2S buffers before TLS handshake to reduce ENOMEM risk.
         self._release_mic()
 
-        try:
-            text = self.transcribe_wav()
-        finally:
-            self._ensure_mic()
+        # Keep I2S released during chat request too.
+        # It will be reinitialized lazily on next record_wav call.
+        text = self.transcribe_wav()
 
         while self.button.value() == 0:
             await asyncio.sleep_ms(10)

@@ -124,6 +124,12 @@ class OpenAI:
 
                 stage = "http_post_try_" + str(attempt + 1)
 
+                gc.collect()
+                self._debug_mem(
+                    "http_post_pre_gc_try_" +
+                    str(attempt + 1)
+                )
+
                 try:
 
                     response = urequests.post(

@@ -333,4 +333,6 @@ class OpenAIStreamClient:
         if self.sock:
             self._debug_mem("close_start")
             self.sock.close()
+            self.sock = None
+            gc.collect()
             print("[openaistream] socket_closed")
