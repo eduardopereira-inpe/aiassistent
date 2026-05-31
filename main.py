@@ -34,8 +34,14 @@ from config import (
 )
 
 melody = [
-    ['Star Trek intro', 80, 'NOTE_D4', '-8', 'NOTE_G4', '16', 'NOTE_C5', '-4', 'NOTE_B4', '8', 'NOTE_G4', '-16', 'NOTE_E4', '-16', 'NOTE_A4', '-16', 'NOTE_D5', '2']
+    [
+        'Star Trek intro', 
+        80, 'NOTE_D4', '-8', 'NOTE_G4', '16', 
+        'NOTE_C5', '-4', 'NOTE_B4', '8', 
+        'NOTE_G4', '-16', 'NOTE_E4', '-16', 
+        'NOTE_A4', '-16', 'NOTE_D5', '2'
     ]
+]
 
 gc.collect()
 
@@ -242,7 +248,7 @@ async def get_audio(display):
     print("Transcribed:", text)
 
     while button.value() == 0:
-        time.sleep_ms(10)
+        await asyncio.sleep_ms(10)
 
     gc.collect()
     display.idle()
