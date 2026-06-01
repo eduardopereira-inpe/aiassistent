@@ -80,6 +80,15 @@ README.md
 - Push button
 - Optional passive buzzer
 
+### Circuit Example
+[![Circuit Example](./images/circuit_example.jpeg)](./images/circuit_example.jpeg)
+
+### Diagram Connection
+
+[![Diagram ](./images/circuit_diagram_example.png)](./images/circuit_diagram_example.png)
+
+
+
 ## Software Requirements
 
 MicroPython firmware/modules compatible with:
