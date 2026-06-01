@@ -88,6 +88,12 @@ README.md
 [![Diagram ](./images/circuit_diagram_example.png)](./images/circuit_diagram_example.png)
 
 
+### Running
+
+[![Watch the video](https://www.youtube.com/shorts/SIbHdoIIevs)](https://www.youtube.com/shorts/SIbHdoIIevs)
+
+
+
 
 ## Software Requirements
 
