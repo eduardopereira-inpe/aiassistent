@@ -174,9 +174,14 @@ class AssistantWebApp:
             "Nao use markdown. "
             "Nao use emojis. "
             "Nao use listas. "
-            "Use no maximo uma frase curta. "
-            "\nAo agendar uma ferramenta utilize exatamente "
+            "Use no maximo uma frase curta. "      
+            "\nAo agendar uma ferramenta utilize exatamente"
             "o nome registrado na lista de tools."
+            "Exemplo: turn_onoff_led\n"
+            "Nao utilize prefixos como:"
+            "\n functions."
+            "\n tools."
+            "\n assistant."
         )
 
         self.llm = OpenAIMTools(
