@@ -131,7 +131,6 @@ class AudioService:
         )
 
 
-
         return self.is_sound_detected
 
     def record_wav(self):
